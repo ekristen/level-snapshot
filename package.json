@@ -1,0 +1,16 @@
+{
+  "name": "level-snapshot",
+  "version": "1.0.0",
+  "description": "Takes snapshots and maintains a transactional log since the snapshot",
+  "main": "level-snapshot.js",
+  "repository": "ekristen/level-snapshot",
+  "license": "MIT",
+  "dependencies": {
+    "after": "^0.8.1",
+    "debug": "^2.2.0",
+    "mkdirp": "^0.5.1",
+    "rimraf": "^2.4.3",
+    "through2": "^2.0.0",
+    "xtend": "^4.0.0"
+  }
+}
