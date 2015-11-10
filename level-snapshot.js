@@ -20,7 +20,13 @@ var LevelSnapshot = module.exports = function(db, opts) {
     return
   }
 
-  if (!(this instanceof LevelSnapshot)) return new LevelSnapshot(db, opts)
+  if (!(this instanceof LevelSnapshot)) {
+    return new LevelSnapshot(db, opts)
+  }
+
+  if (typeof db.db.liveBackup != 'function') {
+    throw new Error('level-snapshot requires level-hyper')
+  }
 
   this.opts = xtend({
     path: './snapshots',
@@ -36,6 +42,7 @@ var LevelSnapshot = module.exports = function(db, opts) {
 
   this._logStream = through2()
   this._logStreamNull = through2.obj(function(chunk, enc, callback) {
+    // Dump any logStream stuff until we roll for the first time.
     callback()
   })
   this._logStream.pipe(this._logStreamNull)
