@@ -49,7 +49,7 @@ var LevelSnapshot = module.exports = function(db, opts) {
   this._logStreamPrevious = null
   this._logStreamCurrent = null
 
-  var schema = fs.readFileSync('./schema.proto')
+  var schema = fs.readFileSync(path.join(__dirname, 'schema.proto'))
   this.protocols = protobufs(schema)
 
   mkdirp.sync(this.opts.path)
