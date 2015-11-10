@@ -30,7 +30,6 @@ var LevelSnapshot = module.exports = function(db, opts) {
 
   this.opts = xtend({
     path: './snapshots',
-    dbPath: './db',
     logPath: './logs',
     interval: 3600,
     lastSyncPath: './lastsync',
@@ -196,7 +195,7 @@ LevelSnapshot.prototype.snapshot = function() {
 
   function doSnapshot() {
     var backupName = ['snapshot', new Date().getTime()].join('-')
-    var backupPath = path.join(self.opts.dbPath, ['backup', backupName].join('-'))
+    var backupPath = path.join(self.db.location, ['backup', backupName].join('-'))
 
     self.emit('snapshot:start', backupName)
 
@@ -421,8 +420,8 @@ LevelSnapshot.prototype.createSnapshotClient = function(port) {
 
   var files = {}
 
-  rimraf.sync(self.opts.dbPath)
-  mkdirp.sync(self.opts.dbPath)
+  rimraf.sync(self.db.location)
+  mkdirp.sync(self.db.location)
 
   streamClient.status({
     status: 0,
@@ -451,7 +450,7 @@ LevelSnapshot.prototype.createSnapshotClient = function(port) {
   })
 
   streamClient.on('file', function(m) {
-    var filePath = path.join(__dirname, self.opts.dbPath, m.filename)
+    var filePath = path.join(__dirname, self.db.location, m.filename)
 
     if (typeof files[m.filename] == 'undefined') {
       files[m.filename] = fs.createWriteStream(filePath)
