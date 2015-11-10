@@ -1,0 +1,16 @@
+message File {
+  required string filename = 1;
+  required bytes contents = 2;
+  required bool ended = 3;
+}
+
+message Log {
+  required bytes type = 1;
+  required bytes key = 2;
+  required bytes value = 3;
+}
+
+message Status {
+  required int32 status = 1;
+  optional int32 time = 2;
+}

@@ -1,13 +1,19 @@
 var fs = require('fs')
+var net = require('net')
 var path = require('path')
 var util = require('util')
 var events = require('events')
 
+var async = require('async')
 var after = require('after')
 var xtend = require('xtend')
 var mkdirp = require('mkdirp')
 var rimraf = require('rimraf')
 var through2 = require('through2')
+var protobufs = require('protocol-buffers-stream')
+var debug = require('debug')('level-snapshot:library')
+var debugc = require('debug')('level-snapshot:client')
+var debugs = require('debug')('level-snapshot:server')
 
 var LevelSnapshot = module.exports = function(db, opts) {
   if (db._snapshot) {
@@ -17,29 +23,35 @@ var LevelSnapshot = module.exports = function(db, opts) {
   if (!(this instanceof LevelSnapshot)) return new LevelSnapshot(db, opts)
 
   this.opts = xtend({
-    path: './db',
-    log: {
-      path: './logs'
-    },
-    snapshot: {
-      path: './snapshots',
-      interval: 3600
-    }
-  })
+    path: './snapshots',
+    dbPath: './db',
+    logPath: './logs',
+    interval: 3600,
+    lastSyncPath: './lastsync',
+    noSnapshot: false
+  }, opts)
 
   this.db = db
   this._snapshotInterval = null
 
   this._logStream = through2()
+  this._logStreamNull = through2.obj(function(chunk, enc, callback) {
+    callback()
+  })
+  this._logStream.pipe(this._logStreamNull)
+
   this._logStreamPrevious = null
   this._logStreamCurrent = null
 
+  var schema = fs.readFileSync('./schema.proto')
+  this.protocols = protobufs(schema)
 
-  mkdirp.sync(this.opts.snapshot.path)
-  mkdirp.sync(this.opts.log.path)
+  mkdirp.sync(this.opts.path)
+  mkdirp.sync(this.opts.logPath)
 
   var self = this
-  
+
+  this.setupMethods()
   this.setupEvents()
 
   this.attach()
@@ -61,14 +73,35 @@ LevelSnapshot.prototype.setupEvents = function() {
   })
   
   this.on('snapshot:cleanup', function(snapshotName) {
-    fs.unlink(path.join(self.opts.log.path, snapshotName), function(err) {})
+    fs.unlink(path.join(self.opts.logPath, snapshotName), function(err) {})
   })
+}
+
+LevelSnapshot.prototype.setupMethods = function() {
+  var self = this
+
+  this.db.methods = this.db.methods || {}
+
+  if (typeof this.db.methods.liveBackup != 'undefined') {
+    return
+  }
+
+  this.db.methods.liveBackup = { type: 'async' }
+  this.db.liveBackup = function (dir, cb) {
+    if (typeof dir === 'number') {
+      dir = String(dir)
+    }
+
+    self.db.db.liveBackup(dir, cb)
+  }
 }
 
 LevelSnapshot.prototype.roll = function(snapshotName) {
   var self = this
 
-  var filePath = path.join(this.opts.log.path, snapshotName)
+  var filePath = path.join(this.opts.logPath, snapshotName)
+
+  this._logStream.unpipe(this._logStreamNull)
 
   if (this._logStreamCurrent == null) {
     this._logStreamCurrentFile = filePath
@@ -136,12 +169,12 @@ LevelSnapshot.prototype.snapshot = function() {
   var self = this
 
   function expireSnapshots(callback) {
-    fs.readdir(self.opts.snapshot.path, function(err, files) {
+    fs.readdir(self.opts.path, function(err, files) {
       var done = after(files.length, callback)
 
       var len = files.length - 4
       for (var i=0; i<len; i++) {
-        var filePath = path.join(self.opts.snapshot.path, files[i])
+        var filePath = path.join(self.opts.path, files[i])
         rimraf(filePath, function(err) {
           if (err) {
             return done(err)
@@ -156,13 +189,13 @@ LevelSnapshot.prototype.snapshot = function() {
 
   function doSnapshot() {
     var backupName = ['snapshot', new Date().getTime()].join('-')
-    var backupPath = path.join(self.opts.path, ['backup', backupName].join('-'))
+    var backupPath = path.join(self.opts.dbPath, ['backup', backupName].join('-'))
 
     self.emit('snapshot:start', backupName)
 
-    self.db.liveBackup(backupName, function() {
-      var snapshotPath = path.join(self.opts.snapshot.path, backupName)
-      var currentPath = path.join(self.opts.snapshot.path, 'snapshot-current')
+    self.db.db.liveBackup(String(backupName), function() {
+      var snapshotPath = path.join(self.opts.path, backupName)
+      var currentPath = path.join(self.opts.path, 'snapshot-current')
 
       // Move Backup to Snapshot Directory
       fs.rename(backupPath, snapshotPath, function(err) {
@@ -196,9 +229,261 @@ LevelSnapshot.prototype.snapshot = function() {
     })
   }
   
-  this._snapshotInterval = setInterval(doSnapshot, (parseInt(self.opts.snapshot.interval) || 3600) * 1000)
+  this._snapshotInterval = setInterval(doSnapshot, (parseInt(self.opts.interval) || 3600) * 1000)
 
-  doSnapshot()
+  if (this.opts.noSnapshot == false) {
+    setTimeout(doSnapshot, 500)
+  }
 }
 
 
+LevelSnapshot.prototype.createSnapshotServer = function() {
+  var self = this
+  
+  debugs('createSnapshotServer')
+  
+  function syncSnapshot(streamServer, syncTime, callback) {
+    debugs('syncTime: %s', syncTime)
+
+    fs.readdir(path.join(self.opts.path, 'snapshot-' + syncTime), function(err, files) {
+      debugs('snapshots: %j', files)
+
+      async.eachSeries(files, function(file, cb) {
+        debugs('sending file: %s', file)
+
+        var fullPath = path.join(__dirname, self.opts.path, 'snapshot-' + syncTime, file)
+
+        fs.createReadStream(fullPath)
+          .pipe(through2.obj(function (chunk, enc, callback) {
+            var data = {
+              filename: file,
+              contents: chunk,
+              ended: false
+            }
+
+            callback(null, data)
+          }))
+          .on('data', function(data) {
+            streamServer.file(data)
+          })
+          .on('end', function(data) {
+            
+            streamServer.file({
+              filename: file,
+              contents: new Buffer('end'),
+              ended: true
+            })
+
+
+            debugs('ending file: %s', file)
+
+            cb()
+          })
+
+      }, function(err) {
+        streamServer.status({
+          status: 7 // tell the client we are done sending files
+        })
+
+        callback()
+      })
+
+    })
+  }
+  
+  function syncLogs(streamServer) {
+    streamServer.once('status', function(m) {
+      if (m.status == 8) {
+        debugs('sending logs now')
+
+        var readStream = through2()
+        readStream.on('end', function() {
+          console.log('ending!!!')
+        })
+
+        fs.createReadStream(self._logStreamCurrentFile)
+          .pipe(through2.obj(function(chunk, enc, callback) {
+            var self = this
+
+            var lines = chunk.toString().split('\n').filter(function(e) {
+              return e != ''
+            })
+    
+            lines.forEach(function(line) {
+              self.push(line)
+            })
+    
+            callback()
+          }))
+          .pipe(readStream, {end: false})
+
+        self._logStream.pipe(readStream, {end: false})
+
+        readStream.on('data', function(data) {
+          var d
+          try {
+            d = JSON.parse(data)
+          } catch(e) {
+            d = false
+          }
+
+          if (d == false) {
+            throw "this should never happen"
+          }
+
+          streamServer.log({
+            type: new Buffer(String(d.type)),
+            key: new Buffer(String(d.key)),
+            value: new Buffer(String(d.value))
+          })
+        })
+      }
+    })
+  }
+  
+  function checkSnapshotSync(time, callback) {
+    async.waterfall([
+      function(callback) {
+        fs.readdir(self.opts.path, callback)
+      },
+      function(files, callback) {
+        if (files[files.length - 1] == 'snapshot-current') {
+          files.pop()
+        }
+
+        var latest = files[files.length - 1]
+
+        callback(null, latest)
+      },
+      function(latest, callback) {
+        var latest_time = latest.split('-')[1] || 0
+
+        callback(null, latest_time)
+      }
+    ], function(err, latest_time) {
+      if (time < latest_time) {
+        return callback(null, latest_time)
+      }
+
+      callback(null, false)
+    })
+  }
+
+
+  return net.createServer(function(con) {
+    con.on('error', function (err) {
+      self.emit('snapshot:error', err)
+    })
+
+    var streamServer = self.protocols()
+    con.pipe(streamServer).pipe(con)
+
+    streamServer.on('status', function(m) {
+      debugs('status received: %j', m)
+
+      if (m.status == 0) {
+        checkSnapshotSync(m.time || 0, function(err, doSync) {
+          if (doSync) {
+            syncSnapshot(streamServer, doSync, function() {
+              syncLogs(streamServer)
+            })
+          }
+          else {
+            syncLogs()
+          }
+        })
+      }
+
+    })
+
+  })
+}
+
+LevelSnapshot.prototype.createSnapshotClient = function(port) {
+  var self = this
+
+  var socket = net.connect(port || 3113)
+
+  self.db.close()
+
+  var lastSnapshotSync = this.getLastSnapshotSyncTime()
+
+  var streamClient = self.protocols()
+
+  socket.pipe(streamClient).pipe(socket)
+
+  var files = {}
+
+  rimraf.sync(self.opts.dbPath)
+  mkdirp.sync(self.opts.dbPath)
+
+  streamClient.status({
+    status: 0,
+    time: lastSnapshotSync
+  })
+  
+  streamClient.on('status', function(m) {
+    // Status 1 -- Start Sync
+    
+    if (m.status == 7) {
+      // Snapshot Sync is Finished
+      // Listen for Logs
+      
+      self.setLastSnapshotSyncTime(String(new Date().getTime()))
+
+      self.db.open(function(err) {
+        if (err) {
+          throw err
+        }
+
+        streamClient.status({
+          status: 8
+        })
+      })
+    }
+  })
+
+  streamClient.on('file', function(m) {
+    var filePath = path.join(__dirname, self.opts.dbPath, m.filename)
+
+    if (typeof files[m.filename] == 'undefined') {
+      files[m.filename] = fs.createWriteStream(filePath)
+    }
+
+    if (m.ended == true) {
+      debugc('file written: %s', m.filename)
+      files[m.filename].end()
+      return
+    }
+
+    files[m.filename].write(m.contents)
+  })
+
+  streamClient.on('log', function(l) {
+    debugc('log received: type: %s, key: %s', l.type.toString(), l.key.toString())
+
+    var action = l.type.toString()
+    var key = l.key.toString()
+    var value = l.value.toString()
+
+    self.db._snapshot[action](key, value, function(err) {
+      if (err) {
+        console.log('Error writing to database, this is bad')
+      }
+    })
+  })
+
+  return socket
+}
+
+LevelSnapshot.prototype.getLastSnapshotSyncTime = function() {
+  if (fs.existsSync(this.opts.lastSyncPath)) {
+    return Number(fs.readFileSync(this.opts.lastSyncPath, 'utf8'))
+  }
+  
+  return 0
+}
+
+LevelSnapshot.prototype.setLastSnapshotSyncTime = function(time) {
+  fs.writeFileSync(this.opts.lastSyncPath, time, 'utf8')
+}
