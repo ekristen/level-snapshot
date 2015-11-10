@@ -257,7 +257,7 @@ LevelSnapshot.prototype.createSnapshotServer = function() {
       async.eachSeries(files, function(file, cb) {
         debugs('sending file: %s', file)
 
-        var fullPath = path.join(__dirname, self.opts.path, 'snapshot-' + syncTime, file)
+        var fullPath = path.join(self.opts.path, 'snapshot-' + syncTime, file)
 
         fs.createReadStream(fullPath)
           .pipe(through2.obj(function (chunk, enc, callback) {
@@ -405,10 +405,10 @@ LevelSnapshot.prototype.createSnapshotServer = function() {
   })
 }
 
-LevelSnapshot.prototype.createSnapshotClient = function(port) {
+LevelSnapshot.prototype.createSnapshotClient = function(port, host) {
   var self = this
 
-  var socket = net.connect(port || 3113)
+  var socket = net.connect(port, host || 'localhost')
 
   self.db.close()
 
@@ -450,7 +450,7 @@ LevelSnapshot.prototype.createSnapshotClient = function(port) {
   })
 
   streamClient.on('file', function(m) {
-    var filePath = path.join(__dirname, self.db.location, m.filename)
+    var filePath = path.join(self.db.location, m.filename)
 
     if (typeof files[m.filename] == 'undefined') {
       files[m.filename] = fs.createWriteStream(filePath)
