@@ -325,11 +325,8 @@ LevelSnapshot.prototype.createSnapshotServer = function () {
           try {
             d = JSON.parse(data)
           } catch (e) {
-            d = false
-          }
-
-          if (d === false) {
-            throw new Error('this should never happen')
+            console.error('failed to parse JSON', data)
+            throw e
           }
 
           streamServer.log({
