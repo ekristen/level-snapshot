@@ -174,19 +174,23 @@ LevelSnapshot.prototype.snapshot = function () {
   function expireSnapshots (callback) {
     fs.readdir(self.opts.path, function (err, files) {
       if (err) return callback(err)
-      var done = after(files.length, callback)
-
       var len = files.length - 4
+      if (len <= 0) {
+        return callback()
+      }
+      var done = after(len, callback)
       for (var i = 0; i < len; i++) {
-        var filePath = path.join(self.opts.path, files[i])
-        rimraf(filePath, function (err) {
-          if (err) {
-            return done(err)
-          }
-
-          self.emit('snapshot:cleanup', files[i])
-          done()
-        })
+        (function (index) {
+          var file = files[index]
+          var filePath = path.join(self.opts.path, file)
+          rimraf(filePath, function (err) {
+            if (err) {
+              return done(err)
+            }
+            self.emit('snapshot:cleanup', file)
+            done()
+          })
+        })(i)
       }
     })
   }
