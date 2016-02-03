@@ -58,7 +58,6 @@ var LevelSnapshot = module.exports = function (db, opts) {
   this.setupEvents()
 
   this.attach()
-  this.snapshot()
 
   return this
 }
@@ -168,7 +167,7 @@ LevelSnapshot.prototype.attach = function () {
   this.db.del = del.bind(null, this.db)
 }
 
-LevelSnapshot.prototype.snapshot = function () {
+LevelSnapshot.prototype.start = function () {
   var self = this
 
   function expireSnapshots (callback) {
