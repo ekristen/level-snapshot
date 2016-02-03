@@ -386,10 +386,13 @@ LevelSnapshot.prototype.createSnapshotServer = function () {
       if (m.status === 0) {
         checkSnapshotSync(m.time || 0, function (err, doSync) {
           if (err) {
-            return console.error('failed to to check snapshot sync')
+            return console.error('checkSnapshotSync() failed', err)
           }
           if (doSync) {
-            syncSnapshot(streamServer, doSync, function () {
+            syncSnapshot(streamServer, doSync, function (err) {
+              if (err) {
+                return console.error('syncSnapshot() failed', err)
+              }
               syncLogs(streamServer)
             })
           } else {
@@ -406,7 +409,10 @@ LevelSnapshot.prototype.createSnapshotClient = function (port, host) {
 
   var socket = net.connect(port, host || 'localhost')
 
-  self.db.close()
+  debugc('closing db')
+  self.db.close(function () {
+    debugc('db closed')
+  })
 
   var lastSnapshotSync = this.getLastSnapshotSyncTime()
 
