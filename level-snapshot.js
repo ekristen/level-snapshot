@@ -256,6 +256,8 @@ LevelSnapshot.prototype.createSnapshotServer = function () {
       if (err) return callback(err)
       debugs('snapshots: %j', files)
 
+      streamServer.fileCount({ count: files.length })
+
       async.eachSeries(files, function (file, cb) {
         debugs('sending file: %s', file)
 
@@ -285,13 +287,7 @@ LevelSnapshot.prototype.createSnapshotServer = function () {
 
             cb()
           })
-      }, function (err) {
-        if (err) return callback(err)
-        streamServer.status({
-          status: 7 // tell the client we are done sending files
-        })
-        callback()
-      })
+      }, callback)
     })
   }
 
@@ -430,25 +426,23 @@ LevelSnapshot.prototype.createSnapshotClient = function (port, host) {
     time: lastSnapshotSync
   })
 
-  streamClient.on('status', function (m) {
-    // Status 1 -- Start Sync
+  var filesFlushed
 
-    if (m.status === 7) {
-      // Snapshot Sync is Finished
-      // Listen for Logs
-
+  streamClient.on('fileCount', function (m) {
+    // We can open the db after all files have been flushed
+    filesFlushed = after(m.count, function () {
       self.setLastSnapshotSyncTime(String(new Date().getTime()))
-
       self.db.open(function (err) {
         if (err) {
           throw err
         }
-
+        self.emit('snapshot:db-reopened')
+        debugc('db reopened successfully')
         streamClient.status({
           status: 8
         })
       })
-    }
+    })
   })
 
   streamClient.on('file', function (m) {
@@ -460,7 +454,9 @@ LevelSnapshot.prototype.createSnapshotClient = function (port, host) {
 
     if (m.ended === true) {
       debugc('file written: %s', m.filename)
-      files[m.filename].end()
+      var file = files[m.filename]
+      file.on('finish', filesFlushed)
+      file.end()
       return
     }
 

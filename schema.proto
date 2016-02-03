@@ -4,6 +4,10 @@ message File {
   required bool ended = 3;
 }
 
+message FileCount {
+  required int32 count = 1;
+}
+
 message Log {
   required bytes type = 1;
   required bytes key = 2;
