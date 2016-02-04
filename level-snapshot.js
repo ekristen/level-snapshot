@@ -10,6 +10,7 @@ var xtend = require('xtend')
 var mkdirp = require('mkdirp')
 var rimraf = require('rimraf')
 var through2 = require('through2')
+var timestamp = require('monotonic-timestamp')
 var protobufs = require('protocol-buffers-stream')
 
 var debug = require('debug')('level-snapshot')
@@ -201,7 +202,7 @@ LevelSnapshot.prototype.start = function () {
   }
 
   function doSnapshot () {
-    var backupName = ['snapshot', new Date().getTime()].join('-')
+    var backupName = ['snapshot', timestamp()].join('-')
     var backupPath = path.join(self.db.location, ['backup', backupName].join('-'))
 
     self.emit('snapshot:start', backupName)
@@ -443,7 +444,7 @@ LevelSnapshot.prototype.createSnapshotClient = function (port, host) {
   streamClient.on('fileCount', function (m) {
     // We can open the db after all files have been flushed
     filesFlushed = after(m.count, function () {
-      self.setLastSnapshotSyncTime(String(new Date().getTime()))
+      self.setLastSnapshotSyncTime(String(timestamp()))
       self.db.open(function (err) {
         if (err) {
           throw err
