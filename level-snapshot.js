@@ -11,6 +11,8 @@ var mkdirp = require('mkdirp')
 var rimraf = require('rimraf')
 var through2 = require('through2')
 var protobufs = require('protocol-buffers-stream')
+
+var debug = require('debug')('level-snapshot')
 var debugc = require('debug')('level-snapshot:client')
 var debugs = require('debug')('level-snapshot:server')
 
@@ -168,6 +170,10 @@ LevelSnapshot.prototype.attach = function () {
 }
 
 LevelSnapshot.prototype.start = function () {
+  if (this._snapshotInterval !== null) {
+    return debug('snapshots already started')
+  }
+
   var self = this
 
   function expireSnapshots (callback) {
@@ -242,6 +248,12 @@ LevelSnapshot.prototype.start = function () {
   if (this.opts.noSnapshot === false) {
     setTimeout(doSnapshot, 500)
   }
+}
+
+LevelSnapshot.prototype.stop = function () {
+  debug('stopping snapshots')
+  clearInterval(this._snapshotInterval)
+  this._snapshotInterval = null
 }
 
 LevelSnapshot.prototype.createSnapshotServer = function () {
