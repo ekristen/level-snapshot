@@ -110,7 +110,6 @@ LevelSnapshot.prototype.roll = function (snapshotName) {
 
   if (this._logStreamCurrent == null) {
     this._logStreamCurrentFile = filePath
-    this._logStreamPreviousFile = filePath
     this._logStreamCurrent = fs.createWriteStream(filePath)
     this._logStreamPrevious = this._logStreamCurrent
 
