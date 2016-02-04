@@ -47,7 +47,6 @@ var LevelSnapshot = module.exports = function (db, opts) {
   })
   this._logStream.pipe(this._logStreamNull)
 
-  this._logStreamPrevious = null
   this._logStreamCurrent = null
 
   var schema = fs.readFileSync(path.join(__dirname, 'schema.proto'))
@@ -108,22 +107,14 @@ LevelSnapshot.prototype.roll = function (snapshotName) {
 
   this._logStream.unpipe(this._logStreamNull)
 
-  if (this._logStreamCurrent == null) {
-    this._logStreamCurrentFile = filePath
-    this._logStreamPreviousFile = filePath
-    this._logStreamCurrent = fs.createWriteStream(filePath)
-    this._logStreamPrevious = this._logStreamCurrent
+  var previous = this._logStreamCurrent
+  this._logStreamCurrentFile = filePath
+  this._logStreamCurrent = fs.createWriteStream(filePath)
+  this._logStream.pipe(this._logStreamCurrent)
 
-    this._logStream.pipe(this._logStreamCurrent)
-  } else {
-    this._logStreamCurrentFile = filePath
-    this._logStreamCurrent = fs.createWriteStream(filePath)
-
-    this._logStream.pipe(this._logStreamCurrent)
-    this._logStream.unpipe(this._logStreamPrevious)
-
-    this._logStreamPrevious.close()
-    this._logStreamPrevious = this._logStreamCurrent
+  if (previous !== null) {
+    this._logStream.unpipe(previous)
+    previous.close()
   }
 }
 
