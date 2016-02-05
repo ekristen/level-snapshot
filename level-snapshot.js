@@ -134,9 +134,7 @@ LevelSnapshot.prototype.attach = function () {
       callback = options
       options = {}
     }
-
-    self._logStream.write(new Buffer(JSON.stringify({type: 'put', key: key, value: value, options: options})) + '\n')
-
+    write({ type: 'put', key: key, value: value, options: options })
     self.db._snapshot.put.call(db, key, value, options, callback)
   }
 
@@ -145,18 +143,22 @@ LevelSnapshot.prototype.attach = function () {
       callback = options
       options = {}
     }
-
-    self._logStream.write(new Buffer(JSON.stringify({type: 'del', key: key, options: options})) + '\n')
-
+    write({ type: 'del', key: key, options: options })
     self.db._snapshot.del.call(db, key, options, callback)
   }
 
+  function write (data) {
+    self._logStream.write(JSON.stringify(data) + '\n')
+  }
+
+  // TODO batch!
   this.db._snapshot = {
     put: this.db.put.bind(this.db),
     del: this.db.del.bind(this.db),
     createLogStream: createLogStream.bind(this)
   }
 
+  // TODO batch!
   this.db.put = put.bind(null, this.db)
   this.db.del = del.bind(null, this.db)
 }
