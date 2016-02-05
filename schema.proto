@@ -1,7 +1,7 @@
 message File {
   required string filename = 1;
-  required bytes contents = 2;
-  required bool ended = 3;
+  optional bytes contents = 2;
+  optional bool ended = 3;
 }
 
 message FileCount {
