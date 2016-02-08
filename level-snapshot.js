@@ -252,10 +252,10 @@ LevelSnapshot.prototype.stop = function () {
   this._snapshotInterval = null
 }
 
-LevelSnapshot.prototype.createSnapshotServer = function () {
-  var self = this
+LevelSnapshot.prototype.createServer = function () {
+  debugs('createServer')
 
-  debugs('createSnapshotServer')
+  var self = this
 
   function syncSnapshot (streamServer, folder, callback) {
     debugs('syncSnapshot: %s', folder)
@@ -367,7 +367,9 @@ LevelSnapshot.prototype.createSnapshotServer = function () {
   })
 }
 
-LevelSnapshot.prototype.createSnapshotClient = function (port, host) {
+LevelSnapshot.prototype.createClient = function (port, host) {
+  debugc('createClient')
+
   var self = this
   var socket = net.connect(port, host || 'localhost')
   var lastSnapshotSync = this.getLastSnapshotSyncTime()
