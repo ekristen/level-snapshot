@@ -62,10 +62,7 @@ var LevelSnapshot = module.exports = function (db, opts) {
   mkdirp.sync(this.opts.path)
   mkdirp.sync(this.opts.logPath)
 
-  // TODO remove - this is not needed for level-snapshot functionality
-  this.setupMethods()
   this.setupEvents()
-
   this.attach()
 
   return this
@@ -86,22 +83,6 @@ LevelSnapshot.prototype.setupEvents = function () {
       if (err) console.log('failed to remove', fileName)
     })
   })
-}
-
-// TODO remove - this is not needed for level-snapshot functionality
-LevelSnapshot.prototype.setupMethods = function () {
-  var self = this
-
-  this.db.methods = this.db.methods || {}
-  if (typeof this.db.methods.liveBackup !== 'undefined') return
-
-  this.db.methods.liveBackup = { type: 'async' }
-  this.db.liveBackup = function (dir, cb) {
-    if (typeof dir === 'number') {
-      dir = String(dir)
-    }
-    self.db.db.liveBackup(dir, cb)
-  }
 }
 
 LevelSnapshot.prototype.roll = function (snapshotName) {
