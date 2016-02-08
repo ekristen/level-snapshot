@@ -104,14 +104,6 @@ LevelSnapshot.prototype.roll = function (snapshotName) {
 LevelSnapshot.prototype.attach = function () {
   var self = this
 
-  // TODO remove - not used
-  function createLogStream () {
-    var readStream = through2()
-    fs.createReadStream(this._logStreamCurrentFile).pipe(readStream, {end: false})
-    self._logStream.pipe(readStream, {end: false})
-    return readStream
-  }
-
   function put (db, key, value, options, callback) {
     if (typeof options === 'function') {
       callback = options
@@ -137,8 +129,7 @@ LevelSnapshot.prototype.attach = function () {
   // TODO batch!
   this.db._snapshot = {
     put: this.db.put.bind(this.db),
-    del: this.db.del.bind(this.db),
-    createLogStream: createLogStream.bind(this)
+    del: this.db.del.bind(this.db)
   }
 
   // TODO batch!
