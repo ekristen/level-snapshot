@@ -107,6 +107,12 @@ LevelSnapshot.prototype.roll = function (snapshotName) {
 LevelSnapshot.prototype.attach = function () {
   var self = this
 
+  this.db._snapshot = {
+    put: this.db.put.bind(this.db),
+    del: this.db.del.bind(this.db),
+    batch: this.db.batch.bind(this.db)
+  }
+
   function put (db, key, value, options, callback) {
     if (typeof options === 'function') {
       callback = options
@@ -125,19 +131,25 @@ LevelSnapshot.prototype.attach = function () {
     self.db._snapshot.del.call(db, key, options, callback)
   }
 
+  function batch (db, ops, options, callback) {
+    if (typeof options === 'function') {
+      callback = options
+      options = {}
+    }
+    ops.forEach(function (op) {
+      op.options = op.options || options
+      write(op)
+    })
+    self.db._snapshot.batch.call(db, ops, options, callback)
+  }
+
   function write (data) {
     self._logStream.write(JSON.stringify(data) + '\n')
   }
 
-  // TODO batch!
-  this.db._snapshot = {
-    put: this.db.put.bind(this.db),
-    del: this.db.del.bind(this.db)
-  }
-
-  // TODO batch!
   this.db.put = put.bind(null, this.db)
   this.db.del = del.bind(null, this.db)
+  this.db.batch = batch.bind(null, this.db)
 }
 
 LevelSnapshot.prototype.start = function () {
