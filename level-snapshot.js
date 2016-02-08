@@ -110,25 +110,25 @@ LevelSnapshot.prototype.attach = function () {
     batch: this.db.batch.bind(this.db)
   }
 
-  function put (db, key, value, options, callback) {
+  this.db.put = function (key, value, options, callback) {
     if (typeof options === 'function') {
       callback = options
       options = {}
     }
     write({ type: 'put', key: key, value: value, options: options })
-    self.db._snapshot.put.call(db, key, value, options, callback)
+    self.db._snapshot.put(key, value, options, callback)
   }
 
-  function del (db, key, options, callback) {
+  this.db.del = function (key, options, callback) {
     if (typeof options === 'function') {
       callback = options
       options = {}
     }
     write({ type: 'del', key: key, options: options })
-    self.db._snapshot.del.call(db, key, options, callback)
+    self.db._snapshot.del(key, options, callback)
   }
 
-  function batch (db, ops, options, callback) {
+  this.db.batch = function (ops, options, callback) {
     if (typeof options === 'function') {
       callback = options
       options = {}
@@ -137,16 +137,12 @@ LevelSnapshot.prototype.attach = function () {
       op.options = op.options || options
       write(op)
     })
-    self.db._snapshot.batch.call(db, ops, options, callback)
+    self.db._snapshot.batch(ops, options, callback)
   }
 
   function write (data) {
     self._logStream.write(JSON.stringify(data) + '\n')
   }
-
-  this.db.put = put.bind(null, this.db)
-  this.db.del = del.bind(null, this.db)
-  this.db.batch = batch.bind(null, this.db)
 }
 
 LevelSnapshot.prototype.start = function () {
