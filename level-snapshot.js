@@ -62,7 +62,7 @@ var LevelSnapshot = module.exports = function (db, opts) {
   mkdirp.sync(this.opts.logPath)
 
   this.setupEvents()
-  this.attach()
+  wrapDb.call(this)
 
   return this
 }
@@ -104,7 +104,7 @@ LevelSnapshot.prototype.roll = function (snapshotName) {
   }
 }
 
-LevelSnapshot.prototype.attach = function () {
+function wrapDb () {
   var self = this
 
   this.db._snapshot = {
