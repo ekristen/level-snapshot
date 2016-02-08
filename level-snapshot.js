@@ -260,13 +260,14 @@ LevelSnapshot.prototype.createSnapshotServer = function () {
   function syncSnapshot (streamServer, folder, callback) {
     debugs('syncSnapshot: %s', folder)
 
+    var ts = folder.split('-')[1]
     var fullFolderPath = path.join(self.opts.path, folder)
 
     fs.readdir(fullFolderPath, function (err, files) {
       if (err) return callback(err)
 
       debugs('snapshots: %j', files)
-      streamServer.fileCount({ count: files.length, id: folder })
+      streamServer.fileCount({ count: files.length, timestamp: ts })
 
       async.eachSeries(files, function (file, nextFile) {
         debugs('sending file: %s', file)
@@ -405,9 +406,10 @@ LevelSnapshot.prototype.createSnapshotClient = function (port, host) {
     streamClient.once('fileCount', function (m) {
       // We can open the db after all files have been flushed
       debugc('fileCount message %j', m)
+      var ts = m.timestamp || timestamp()
       filesFlushed = after(m.count, function () {
         files = {}
-        self.setLastSnapshotSyncTime(String(timestamp()))
+        self.setLastSnapshotSyncTime(ts)
         self.db.open(function (err) {
           if (err) throw err
           debugc('db reopened successfully')

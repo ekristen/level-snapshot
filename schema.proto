@@ -6,6 +6,7 @@ message File {
 
 message FileCount {
   required int32 count = 1;
+  required string timestamp = 2;
 }
 
 message Log {
