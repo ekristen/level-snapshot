@@ -62,14 +62,14 @@ var LevelSnapshot = module.exports = function (db, opts) {
   mkdirp.sync(this.opts.path)
   mkdirp.sync(this.opts.logPath)
 
-  this.setupEvents()
+  setupEvents.call(this)
   wrapDb.call(this)
 
   return this
 }
 util.inherits(LevelSnapshot, events.EventEmitter)
 
-LevelSnapshot.prototype.setupEvents = function () {
+function setupEvents () {
   var self = this
   this.on('snapshot:start', function (snapshotName) {
     self.roll(snapshotName)
