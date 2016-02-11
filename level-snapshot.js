@@ -70,14 +70,18 @@ util.inherits(LevelSnapshot, events.EventEmitter)
 
 LevelSnapshot.prototype.setupEvents = function () {
   var self = this
-  this.on('snapshot:start', function (snapshotName) {
+  this.on('snapshot:start', function (name) {
+    debug('taking snapshot %s', name)
     self.roll(snapshotName)
   })
-  this.on('snapshot:error', function (err) {
-    console.log('snapshot:error', err)
+  this.on('snapshot:complete', function (name) {
+    debug('snapshot %s completed successfully', name)
   })
-  this.on('snapshot:cleanup', function (snapshotName) {
-    var fileName = path.join(self.opts.logPath, snapshotName)
+  this.on('snapshot:error', function (err) {
+    console.error('failed taking snapshot', err)
+  })
+  this.on('snapshot:cleanup', function (name) {
+    var fileName = path.join(self.opts.logPath, name)
     fs.unlink(fileName, function (err) {
       if (err) console.log('failed to remove', fileName)
     })
