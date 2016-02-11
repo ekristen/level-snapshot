@@ -395,7 +395,7 @@ LevelSnapshot.prototype.createClient = function (port, host) {
       var ts = m.timestamp || timestamp()
       filesFlushed = after(m.count, function () {
         files = {}
-        self.setLastSnapshotSyncTime(ts)
+        setLastSnapshotSyncTime.call(self, ts)
         self.db.open(function (err) {
           if (err) throw err
           debugc('db reopened successfully')
@@ -437,6 +437,6 @@ LevelSnapshot.prototype.getLastSnapshotSyncTime = function () {
   return 0
 }
 
-LevelSnapshot.prototype.setLastSnapshotSyncTime = function (time) {
+function setLastSnapshotSyncTime (time) {
   fs.writeFileSync(this.opts.lastSyncPath, time, 'utf8')
 }
