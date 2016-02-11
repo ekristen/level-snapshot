@@ -40,8 +40,7 @@ var LevelSnapshot = module.exports = function (db, opts) {
     path: './snapshots',
     logPath: './logs',
     interval: 3600,
-    lastSyncPath: './lastsync',
-    noSnapshot: false
+    lastSyncPath: './lastsync'
   }, opts)
 
   this.db = db
@@ -138,10 +137,6 @@ LevelSnapshot.prototype.attach = function () {
 }
 
 LevelSnapshot.prototype.start = function () {
-  if (this._snapshotInterval !== null) {
-    return debug('snapshots already started')
-  }
-
   var self = this
 
   function expireSnapshots (callback) {
@@ -210,12 +205,16 @@ LevelSnapshot.prototype.start = function () {
     })
   }
 
-  var interval = (parseInt(self.opts.interval, 10) || 3600) * 1000
-  this._snapshotInterval = setInterval(doSnapshot, interval)
-
-  if (this.opts.noSnapshot === false) {
-    setTimeout(doSnapshot, 500)
+  if (this._snapshotInterval === null) {
+    var interval = (parseInt(self.opts.interval, 10) || 3600) * 1000
+    debug('starting snapshots at interval %d', interval)
+    this._snapshotInterval = setInterval(doSnapshot, interval)
+  } else {
+    debug('snapshots already started')
   }
+
+  debug('triggering doSnapshot() on next tick')
+  process.nextTick(doSnapshot)
 }
 
 LevelSnapshot.prototype.stop = function () {
