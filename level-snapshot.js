@@ -72,7 +72,7 @@ function setupEvents () {
   var self = this
   this.on('snapshot:start', function (name) {
     debug('taking snapshot %s', name)
-    self.roll(snapshotName)
+    roll.call(self, snapshotName)
   })
   this.on('snapshot:complete', function (name) {
     debug('snapshot %s completed successfully', name)
@@ -88,7 +88,8 @@ function setupEvents () {
   })
 }
 
-LevelSnapshot.prototype.roll = function (snapshotName) {
+function roll (snapshotName) {
+  debug('rolling logs to %s', snapshotName)
   var filePath = path.join(this.opts.logPath, snapshotName)
 
   this._logStream.unpipe(this._logStreamNull)
