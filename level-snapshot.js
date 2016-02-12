@@ -72,7 +72,7 @@ function setupEvents () {
   var self = this
   this.on('snapshot:start', function (name) {
     debug('taking snapshot %s', name)
-    roll.call(self, snapshotName)
+    roll.call(self, name)
   })
   this.on('snapshot:complete', function (name) {
     debug('snapshot %s completed successfully', name)
