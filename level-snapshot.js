@@ -168,7 +168,7 @@ LevelSnapshot.prototype.start = function () {
             if (err) {
               return done(err)
             }
-            self.emit('snapshot:cleanup', file)
+            self.emit('snapshot:cleanup', filePath)
             done()
           })
         })(i)
