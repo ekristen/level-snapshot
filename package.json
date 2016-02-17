@@ -1,6 +1,6 @@
 {
   "name": "level-snapshot",
-  "version": "3.1.1",
+  "version": "4.0.0",
   "description": "Takes snapshots and maintains a transactional log since the snapshot",
   "main": "level-snapshot.js",
   "repository": "ekristen/level-snapshot",
