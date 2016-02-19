@@ -82,6 +82,7 @@ function setupEvents () {
   })
   this.on('snapshot:cleanup', function (name) {
     var fileName = path.join(self.opts.logPath, name)
+    debug('removing log %s', fileName)
     fs.unlink(fileName, function (err) {
       if (err) console.log('failed to remove', fileName)
     })
@@ -164,11 +165,12 @@ LevelSnapshot.prototype.start = function () {
         (function (index) {
           var file = files[index]
           var filePath = path.join(self.opts.path, file)
+          debug('removing snapshot %s', filePath)
           rimraf(filePath, function (err) {
             if (err) {
               return done(err)
             }
-            self.emit('snapshot:cleanup', filePath)
+            self.emit('snapshot:cleanup', file)
             done()
           })
         })(i)
